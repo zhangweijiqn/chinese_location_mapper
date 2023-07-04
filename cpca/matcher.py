@@ -41,7 +41,7 @@ class Matcher:
     }
 
     def __init__(self, stop_re):
-        self.ac = ahocorasick.Automaton()
+        self.ac = ahocorasick.Automaton() #创建一个自动机,提取出包含知识库中实体的所有子串
         self.stop_re = stop_re
 
     def _abbr_name(self, origin_name):
@@ -72,6 +72,7 @@ class Matcher:
         prev_match_info = None
         prev_end_index = None
         for end_index, (original_value, attr_infos) in self.ac.iter(sentence):
+            # print(end_index,original_value, attr_infos[0].name, attr_infos[0].adcode, attr_infos[0].rank)
             # start_index 和 end_index 是左闭右闭的
             start_index = end_index - len(original_value) + 1
             if prev_end_index is not None and end_index <= prev_end_index:

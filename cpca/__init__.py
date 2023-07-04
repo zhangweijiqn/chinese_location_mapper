@@ -17,8 +17,11 @@ _PROVINCE_POS = "省_pos"
 _CITY = "市"
 _CITY_POS = "市_pos"
 
-_COUNTY = "区"
-_COUNTY_POS = "区_pos"
+_COUNTY = "区县"
+_COUNTY_POS = "区县_pos"
+
+_TOWN = "乡镇街道"
+_TOWN_POS = "乡镇_pos"
 
 _ADDR = "地址"
 
@@ -27,11 +30,12 @@ _ADCODE = "adcode"
 _POS_KEY = {
     _PROVINCE: _PROVINCE_POS,
     _CITY: _CITY_POS,
-    _COUNTY: _COUNTY_POS
+    _COUNTY: _COUNTY_POS,
+    _TOWN: _TOWN_POS
 }
 
-rank2name = [_PROVINCE, _CITY, _COUNTY]
-rank2pos_key = [_PROVINCE_POS, _CITY_POS, _COUNTY_POS]
+rank2name = [_PROVINCE, _CITY, _COUNTY, _TOWN]
+rank2pos_key = [_PROVINCE_POS, _CITY_POS, _COUNTY_POS, _TOWN_POS]
 
 
 class AddrInfo:
@@ -39,21 +43,27 @@ class AddrInfo:
     RANK_PROVINCE = 0
     RANK_CITY = 1
     RANK_COUNTY = 2
+    RANK_TOWN = 3
+    RANK_STREET = 4
 
     def __init__(self, name, adcode, longitude, latitude) -> None:
         self.name = name
-        # adcode 的前 6 位代表省市区三级
-        self.adcode = adcode[:6]
+        # adcode总共12位，前 6 位代表省市区三级，后面3位代表乡镇，最后3位可能为村/街道
+        self.adcode = adcode
         self.longitude = longitude
         self.latitude = latitude
 
         # rank 代表行政区划级别 0: 省 1: 市 2: 县
-        if self.adcode.endswith("0000"):
+        if self.adcode[:6].endswith("0000"):
             self.rank = AddrInfo.RANK_PROVINCE
-        elif self.adcode.endswith("00"):
+        elif self.adcode[:6].endswith("00"):
             self.rank = AddrInfo.RANK_CITY
-        else:
+        elif self.adcode.endswith("000000"):
             self.rank = AddrInfo.RANK_COUNTY
+        elif self.adcode.endswith("000"):
+            self.rank = AddrInfo.RANK_TOWN
+        else:
+            self.rank = AddrInfo.RANK_STREET
 
     def belong_to(self, other):
         """通过 adcode 判断当前 addr 是否属于 other"""
@@ -66,7 +76,7 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
     ad_map = {}
     matcher = Matcher(stop_key)
     from pkg_resources import resource_stream
-    with resource_stream('cpca.resources', 'adcodes.csv') as csv_stream:
+    with resource_stream('cpca.resources', 'adcodes_new.csv') as csv_stream:
         from io import TextIOWrapper
         import csv
         text = TextIOWrapper(csv_stream, encoding='utf8')
@@ -135,10 +145,10 @@ def transform_text_with_addrs(text_with_addrs, index=None, pos_sensitive=False, 
 def tidy_order(df, pos_sensitive):
     """整理顺序,唯一作用是让列的顺序好看一些"""
     if pos_sensitive:
-        return df.loc[:, (_PROVINCE, _CITY, _COUNTY, _ADDR, _ADCODE, _PROVINCE_POS, _CITY_POS,
-                              _COUNTY_POS)]
+        return df.loc[:, (_PROVINCE, _CITY, _COUNTY,_TOWN, _ADDR, _ADCODE, _PROVINCE_POS, _CITY_POS,
+                              _COUNTY_POS, _TOWN_POS)]
     else:
-        return df.loc[:, (_PROVINCE, _CITY, _COUNTY, _ADDR, _ADCODE)]
+        return df.loc[:, (_PROVINCE, _CITY, _COUNTY, _TOWN, _ADDR, _ADCODE, _TOWN_POS)]
 
 
 class MatchInfo:
@@ -150,11 +160,12 @@ class MatchInfo:
 
 
 def empty_record(pos_sensitive: bool):
-    empty = {_PROVINCE: None, _CITY: None, _COUNTY: None, _ADDR: None, _ADCODE: None}
+    empty = {_PROVINCE: None, _CITY: None, _COUNTY: None, _TOWN: None,  _ADDR: None, _ADCODE: None}
     if pos_sensitive:
         empty[_PROVINCE_POS] = -1
         empty[_CITY_POS] = -1
         empty[_COUNTY_POS] = -1
+        empty[_TOWN_POS] = -1
     return empty
 
 
@@ -194,7 +205,7 @@ def _extract_addrs(sentence, pos_sensitive, umap, truncate_pos=True, new_entry_w
             adcode = cur_addr.adcode
             truncate_index = match_info.end_index
             # 匹配到了县级就停止
-            if cur_addr.rank == AddrInfo.RANK_COUNTY:
+            if cur_addr.rank == AddrInfo.RANK_TOWN:
                 update_res_by_adcode(res, adcode)
                 res[_ADDR] = sentence[truncate_index + 1:] if truncate_pos else ""
                 res[_ADCODE] = adcode
@@ -236,13 +247,25 @@ def adcode_name(part_adcode: str):
 
 
 def update_res_by_adcode(res: dict, adcode: str):
-    if adcode.endswith("0000"):
+
+    if adcode[:6].endswith("0000"):
         res[_PROVINCE] = adcode_name(adcode[:2])
         return
-    if adcode.endswith("00"):
+
+    if adcode[:6].endswith("00"):
         res[_PROVINCE] = adcode_name(adcode[:2])
         res[_CITY] = adcode_name(adcode[:4])
         return
-    res[_PROVINCE] = adcode_name(adcode[:2])
-    res[_CITY] = adcode_name(adcode[:4])
-    res[_COUNTY] = adcode_name(adcode)
+
+    if adcode.endswith("000000"):
+        res[_PROVINCE] = adcode_name(adcode[:2])
+        res[_CITY] = adcode_name(adcode[:4])
+        res[_COUNTY] = adcode_name(adcode[:6])
+        return
+
+    if adcode.endswith("000"):
+        res[_PROVINCE] = adcode_name(adcode[:2])
+        res[_CITY] = adcode_name(adcode[:4])
+        res[_COUNTY] = adcode_name(adcode[:6])
+        res[_TOWN] = adcode_name(adcode[:9])
+        return
