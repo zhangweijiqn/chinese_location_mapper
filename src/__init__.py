@@ -72,11 +72,11 @@ class AddrInfo:
 
 # 停用词包括: 省, 市, 特别行政区, 自治区.
 # 之所以 区 和 县 不作为停用词，是因为 区县 数目太多, 去掉 "区" 字 或者 "县" 字后很容易误配
-def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Matcher):
+def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Matcher, dict):
     ad_map = {}
     matcher = Matcher(stop_key)
     from pkg_resources import resource_stream
-    with resource_stream('cpca.resources', 'adcodes_level4_global.csv') as csv_stream:
+    with resource_stream(__name__, 'resources/adcodes_level4_global.csv') as csv_stream:
         from io import TextIOWrapper
         import csv
         text = TextIOWrapper(csv_stream, encoding='utf8')
@@ -92,7 +92,7 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
     matcher.complete_add()
 
     myumap = {}
-    with open('cpca/resources/myumap.csv', encoding='utf-8', errors='ignore') as fp:
+    with open('src/resources/myumap.csv', encoding='utf-8', errors='ignore') as fp:
         lines = fp.read()
         for l in lines.split('\n'):
             fields = l.strip().split(',')
@@ -155,7 +155,7 @@ def tidy_order(df, pos_sensitive):
         return df.loc[:, (_PROVINCE, _CITY, _COUNTY,_TOWN, _ADDR, _ADCODE, _PROVINCE_POS, _CITY_POS,
                               _COUNTY_POS, _TOWN_POS)]
     else:
-        return df.loc[:, (_PROVINCE, _CITY, _COUNTY, _TOWN, _ADDR, _ADCODE, _TOWN_POS)]
+        return df.loc[:, (_PROVINCE, _CITY, _COUNTY, _TOWN, _ADDR, _ADCODE)]
 
 
 class MatchInfo:
