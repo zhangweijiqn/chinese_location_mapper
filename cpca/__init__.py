@@ -91,10 +91,17 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
             matcher.add_addr_info(addr_info)
     matcher.complete_add()
 
-    return ad_map, matcher
+    myumap = {}
+    with open('cpca/resources/myumap.csv', encoding='utf-8', errors='ignore') as fp:
+        lines = fp.read()
+        for l in lines.split('\n'):
+            fields = l.strip().split(',')
+            myumap[fields[0]] = fields[1]
+
+    return ad_map, matcher, myumap
 
 
-ad_2_addr_dict, matcher = _init_data()
+ad_2_addr_dict, matcher, myumap = _init_data()
 
 
 def transform(location_strs, index=None, pos_sensitive=False, umap={}):
