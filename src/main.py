@@ -96,7 +96,7 @@ def infer(sentence):
     town = loc[_TOWN]
 
     # return '|'.join([str_none(province), str_none(city), str_none(county), str_none(town)])
-    return str_none(province), str_none(city), str_none(county), str_none(town)
+    return [str_none(province), str_none(city), str_none(county), str_none(town)]
 
 
 def batch_infer(data_path, save_path, sep=','):
@@ -108,7 +108,7 @@ def batch_infer(data_path, save_path, sep=','):
     # import pdb
     # pdb.set_trace()
 
-    df_text[[_PROVINCE,_CITY,_COUNTY,_TOWN]] = df_text['text'].apply(lambda x: infer(x))
+    df_text[[_PROVINCE,_CITY,_COUNTY,_TOWN]] = df_text['text'].apply(lambda x: infer(x)).apply(pd.Series)
     df_text.to_csv(save_path, index = False)
     print('save result to:', save_path)
 
@@ -125,15 +125,19 @@ def test():
 
     df = transform(locations, pos_sensitive=True, umap=myumap)  # cut=False 会造成效率低下
     # df = cpca.transform(locations, pos_sensitive=True, cut=False, umap=myumap)    # cut=False 会造成效率低下
+    # df2 = transform_text_with_addrs(location)
 
     # import pdb
     # pdb.set_trace()
     print(df)
 
     print('\n\n\n')
-    infer(location)
-    # df2 = transform_text_with_addrs(location)
-    # print(df2)
+
+    df = pd.DataFrame(locations, columns=['text'])
+    # import pdb
+    # pdb.set_trace()
+    df[[_PROVINCE,_CITY,_COUNTY,_TOWN]] = df['text'].apply(lambda x: infer(x)).apply(pd.Series)
+    print(df)
 
     # 省_pos，市_pos和区_pos三列大于-1的部分就代表提取的位置。-1则表明这个字段是靠程序推断出来的，或者没能提取出来。
 
@@ -143,5 +147,5 @@ def test():
     #  drawer.draw_locations(df[cpca._ADCODE], "df.html")   # df为上一段代码输出的df
 
 if __name__ == '__main__':
-    test()
+    # test()
     batch_infer('data/origin_files/article_m6_half.txt', 'data/result/article_m6_half.csv', sep='^')
