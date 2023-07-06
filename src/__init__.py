@@ -147,10 +147,9 @@ def transform_text_with_addrs(text_with_addrs, index=None, pos_sensitive=False, 
              umap: 当只有区的信息时， 且该区存在同名时， 指定该区具体是哪一个，字典的 key 为区名，value 为 adcode， 比如 {"朝阳区": "110105"}
     """
     import pandas as pd
-    result = pd.DataFrame(filter(lambda record: record[_ADCODE] is not None,
-                                 _extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False,
-                                         new_entry_when_not_belong=True)),
-                          index=index)
+    # result = pd.DataFrame(filter(lambda record: record[_ADCODE] is not None,_extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False,
+    #                                      new_entry_when_not_belong=True)),index=index)
+    result = pd.DataFrame(_extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False, new_entry_when_not_belong=True),index=index)
     return tidy_order(result, pos_sensitive)
 
 
