@@ -76,7 +76,7 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
     ad_map = {}
     matcher = Matcher(stop_key)
     from pkg_resources import resource_stream
-    with resource_stream('cpca.resources', 'adcodes_new.csv') as csv_stream:
+    with resource_stream('cpca.resources', 'adcodes_level4_global.csv') as csv_stream:
         from io import TextIOWrapper
         import csv
         text = TextIOWrapper(csv_stream, encoding='utf8')

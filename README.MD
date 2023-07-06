@@ -3,7 +3,7 @@
 # 简介
 
 一个用于提取简体中文字符串中省，市和区并能够进行映射，检验和简单绘图的python模块。
-支持 省、市、县、乡镇五级行政划分区域
+支持国内 省、市、县、乡镇五级行政划分区域，以及国际国家级别的识别
 
 举个例子：
 
@@ -51,7 +51,7 @@ Building wheel for pyahocorasick (setup.py) ... error
 
 提取自 @Vonng 维护的项目 [adcode](https://github.com/Vonng/adcode)，里面包含中国的所有行政区划和编码
 
-提取的数据文件在为[cpca/resources/adcodes.csv](./cpca/resources/adcodes.csv)
+提取的数据文件在为[cpca/resources/adcodes.csv](cpca/resources/adcodes_level3_cn.csv)
 
 笔者会定期从 adcode 中同步，如果同步的不及时，可以使用本仓库中的 [local-sync.py](local-sync.py) 脚本进行同步，使用方法如下：
 
