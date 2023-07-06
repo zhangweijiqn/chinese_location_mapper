@@ -245,8 +245,9 @@ def _extract_addrs(sentence, pos_sensitive, umap, truncate_pos=True, new_entry_w
 
 
 def _fill_adcode(adcode):
-    return '{:0<12s}'.format(adcode)
-
+    if len(adcode) <= 12:
+        return '{:0<12s}'.format(adcode)
+    return adcode
 
 def adcode_name(part_adcode: str):
     addr = ad_2_addr_dict.get(_fill_adcode(part_adcode))
@@ -254,6 +255,11 @@ def adcode_name(part_adcode: str):
 
 
 def update_res_by_adcode(res: dict, adcode: str):
+
+    if len(adcode) > 12:
+        res[_PROVINCE] = adcode_name(adcode)
+        # res[_PROVINCE] = '国际'
+        return
 
     if adcode[:6].endswith("0000"):
         res[_PROVINCE] = adcode_name(adcode[:2])
