@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # __init__.py
-
+import sys
+import os
+root_path = os.path.abspath(os.path.dirname(__file__)).split('src')[0]
+sys.path.append(root_path)
 
 from .structures import AddrMap, Pca
 from .structures import P, C, A
@@ -87,6 +90,8 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
                 adcode=record_dict["adcode"],
                 longitude=record_dict["longitude"],
                 latitude=record_dict["latitude"])
+            if len(record_dict["name"]) <= 1:   #为了避免1个字地域名称的产生错误匹配，剔除
+                continue
             ad_map[record_dict["adcode"]] = addr_info
             matcher.add_addr_info(addr_info)
     matcher.complete_add()
@@ -185,7 +190,9 @@ def pos_setter(pos_sensitive):
 
 
 def _get_one_addr(sentence, pos_sensitive, umap):
-    return next(_extract_addrs(sentence, pos_sensitive, umap))
+    addrs = _extract_addrs(sentence, pos_sensitive, umap)
+    # 取首次出现的地址
+    return next(addrs)
 
 
 def _extract_addrs(sentence, pos_sensitive, umap, truncate_pos=True, new_entry_when_not_belong=False) -> dict:
@@ -211,7 +218,7 @@ def _extract_addrs(sentence, pos_sensitive, umap, truncate_pos=True, new_entry_w
             last_info = cur_addr
             adcode = cur_addr.adcode
             truncate_index = match_info.end_index
-            # 匹配到了县级就停止
+            # 匹配到了level4级别停止
             if cur_addr.rank == AddrInfo.RANK_TOWN:
                 update_res_by_adcode(res, adcode)
                 res[_ADDR] = sentence[truncate_index + 1:] if truncate_pos else ""
@@ -258,7 +265,8 @@ def update_res_by_adcode(res: dict, adcode: str):
 
     if len(adcode) > 12:
         res[_PROVINCE] = adcode_name(adcode)
-        # res[_PROVINCE] = '国际'
+        res[_PROVINCE] = '国际'
+        res[_CITY] = '国际'
         return
 
     if adcode[:6].endswith("0000"):
