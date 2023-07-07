@@ -31,21 +31,17 @@ class MatchInfo:
 
 class Matcher:
 
-    # 特殊的简写,主要是几个少数民族自治区
-    special_abbre = {
-        "内蒙古自治区": "内蒙古",
-        "广西壮族自治区": "广西",
-        "西藏自治区": "西藏",
-        "新疆维吾尔自治区": "新疆",
-        "宁夏回族自治区": "宁夏"
-    }
-
-    def __init__(self, stop_re):
+    def __init__(self, stop_re, special_abbre):
         self.ac = ahocorasick.Automaton() #创建一个自动机,提取出包含知识库中实体的所有子串
         self.stop_re = stop_re
+        self.special_abbre = special_abbre
 
     def _abbr_name(self, origin_name):
-        return Matcher.special_abbre.get(origin_name) or re.sub(self.stop_re, '', origin_name)
+        return self.special_abbre.get(origin_name) or re.sub(self.stop_re, '', origin_name)
+        # stop_key="([省市]|特别行政区|自治区)$")
+        # 将stop_re内匹配到的进行替换，比如 北京市替换为背景，河北省替换为河北
+        # 之所以 区 和 县 不作为停用词，是因为 区县 数目太多, 去掉 "区" 字 或者 "县" 字后很容易误配，所以比如四川于都，无法匹配，只能匹配四川于都县
+        # 当前解决方案：将   于都县-->于都   配置到特殊名称里，将来可以手工整理一份县级名称列表配置进去
 
     def _first_add_addr(self, addr_info):
         abbr_name = self._abbr_name(addr_info.name)
@@ -57,7 +53,8 @@ class Matcher:
 
     def add_addr_info(self, addr_info):
         # 因为区名可能重复,所以会添加多次
-        info_tuple = self.ac.get(addr_info.name, 0) or self._first_add_addr(addr_info)
+        # info_tuple = self.ac.get(addr_info.name, 0) or self._first_add_addr(addr_info)
+        info_tuple = self._first_add_addr(addr_info)    #修改： 多次出现的以后面一次为准，比如列表中北京市有两个，添加level低的
         info_tuple[1].append(addr_info)
 
     # 增加地址的阶段结束,之后不会再往对象中添加地址

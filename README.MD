@@ -394,3 +394,6 @@ https://baijiahao.baidu.com/s?id=1747168581206920517&wfr=spider&for=pc
 4.400—599表示政企合一单位的代码，应在本地区的范围内由小到大顺序编写。
 
 注意国际编码的位数和国内编码不同。
+
+
+特别说明：adcodes_new词典问了解决badcase也做了很多修改!

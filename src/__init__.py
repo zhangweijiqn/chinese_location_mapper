@@ -76,8 +76,26 @@ class AddrInfo:
 # 停用词包括: 省, 市, 特别行政区, 自治区.
 # 之所以 区 和 县 不作为停用词，是因为 区县 数目太多, 去掉 "区" 字 或者 "县" 字后很容易误配
 def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Matcher, dict):
+    # 加载自定义高优映射词典
+    myumap = {}
+    with open('src/resources/myumap.csv', encoding='utf-8', errors='ignore') as fp:
+        lines = fp.read()
+        for l in lines.split('\n'):
+            fields = l.strip().split(',')
+            myumap[fields[0]] = fields[1]
+
+
+    # 加载特殊的简写（字典中无法匹配的情况）,主要是几个少数民族自治区
+    special_abbre = {}
+    with open('src/resources/special_abbre.csv', encoding='utf-8', errors='ignore') as fp:
+        lines = fp.read()
+        for l in lines.split('\n'):
+            fields = l.strip().split(',')
+            special_abbre[fields[0]] = fields[1]
+
+    # 加载全球地域及行政代码
     ad_map = {}
-    matcher = Matcher(stop_key)
+    matcher = Matcher(stop_key, special_abbre)
     from pkg_resources import resource_stream
     with resource_stream(__name__, 'resources/adcodes_level4_global.csv') as csv_stream:
         from io import TextIOWrapper
@@ -95,13 +113,6 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
             ad_map[record_dict["adcode"]] = addr_info
             matcher.add_addr_info(addr_info)
     matcher.complete_add()
-
-    myumap = {}
-    with open('src/resources/myumap.csv', encoding='utf-8', errors='ignore') as fp:
-        lines = fp.read()
-        for l in lines.split('\n'):
-            fields = l.strip().split(',')
-            myumap[fields[0]] = fields[1]
 
     return ad_map, matcher, myumap
 
@@ -264,8 +275,8 @@ def update_res_by_adcode(res: dict, adcode: str):
 
     if len(adcode) > 12:
         res[_PROVINCE] = adcode_name(adcode)
-        res[_PROVINCE] = '国际'
-        res[_CITY] = '国际'
+        # res[_PROVINCE] = '国际'
+        # res[_CITY] = '国际'
         return
 
     if adcode[:6].endswith("0000"):
