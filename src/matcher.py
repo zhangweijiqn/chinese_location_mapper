@@ -14,7 +14,7 @@ class MatchInfo:
         if parent_addr:
             return next(filter(lambda attr: attr.belong_to(parent_addr), self.attr_infos), None)
         elif first_adcode:
-            res = next(filter(lambda attr: attr.adcode[:4] == first_adcode[:4], self.attr_infos), None)
+            res = next(filter(lambda attr: attr.adcode[:2] == first_adcode[:2], self.attr_infos), None)
             return res if res else self.attr_infos[0]
         else:
             return self.attr_infos[0]
@@ -38,43 +38,47 @@ class Matcher:
         self.black_names = black_names
 
     def _abbr_name(self, origin_name):
-        names = []
-        if self.special_abbre.get(origin_name):
-            names.append(self.special_abbre.get(origin_name))
+        names = [origin_name]
+        name = self.special_abbre.get(origin_name, 0)
+        if name and name != origin_name:
+            names.append(name)
 
         # stop_key="([省市]|特别行政区|自治区)$")
         # 将stop_re内匹配到的进行替换，比如 北京市替换为背景，河北省替换为河北
         # 之所以 区 和 县 不作为停用词，是因为 区县 数目太多, 去掉 "区" 字 或者 "县" 字后很容易误配，所以比如四川于都，无法匹配，只能匹配四川于都县
         # 当前解决方案，白名单配置方式：将   于都县-->于都   配置到特殊名称里，将来可以手工整理一份县级名称列表配置进去
         name = re.sub(self.stop_re, '', origin_name)
-        if name != origin_name:
-            # 黑名单，对于省市的情况，不进行替换，比如合作市，不添加合作; 单个字的为了防止和正常混淆，不添加匹配
-            if name in self.black_names or len(name) < 2:
-                return names
-            names.append(name)
+        # 黑名单，对于省市的情况，不进行替换，比如合作市，不添加合作; 单个字的为了防止和正常混淆，不添加匹配
+        if name in self.black_names or len(name) < 2 or name == origin_name:
+            return names
+        names.append(name)
 
         return names
 
-    def _first_add_addr(self, addr_info):
-        abbr_names = self._abbr_name(addr_info.name)
-        # 地址名与简写共享一个list
+    def _add_word(self, abbr_name, addr_info):
         share_list = []
-        for abbr_name in abbr_names:
+        if not abbr_name in self.ac:
+            share_list.append(addr_info)
             self.ac.add_word(abbr_name, (abbr_name, share_list))
-        self.ac.add_word(addr_info.name, (addr_info.name, share_list))
-        return share_list
+        else:
+            # 同名共享一个share_list, 此时不必 ac.add_word
+            share_list = self.get(abbr_name)[1]
+            share_list.append(addr_info)
 
     def add_addr_info(self, addr_info):
-        # 因为区名可能重复,所以会添加多次
-        # info_tuple = self.ac.get(addr_info.name, 0) or self._first_add_addr(addr_info)
-        share_list = self._first_add_addr(addr_info)    #修改： 多次出现的以后面一次为准，比如列表中北京市有两个，添加level低的
-        share_list.append(addr_info)
+        # 区名可能重复,所以会添加多次
+        abbr_names = self._abbr_name(addr_info.name)
+
+        for abbr_name in abbr_names:
+            self._add_word(abbr_name, addr_info)
 
     # 增加地址的阶段结束,之后不会再往对象中添加地址
     def complete_add(self):
         self.ac.make_automaton()
 
-    def _get(self, key):
+    def get(self, key):
+        if key is None:
+            return key
         return self.ac.get(key)
 
     def iter(self, sentence):

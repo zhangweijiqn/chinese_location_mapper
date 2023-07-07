@@ -75,7 +75,7 @@ class AddrInfo:
 
 # 停用词包括: 省, 市, 特别行政区, 自治区.
 # 之所以 区 和 县 不作为停用词，是因为 区县 数目太多, 去掉 "区" 字 或者 "县" 字后很容易误配
-def _init_data(stop_key="([省市县]|特别行政区|自治区)$") -> (dict, Matcher, dict):
+def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Matcher, dict):
     # 加载自定义高优映射词典
     # myumap: 当只有区的信息时， 且该区存在同名时， 指定该区具体是哪一个，字典的 key 为区名，value 为 adcode， 比如 {"朝阳区": "110105"}
     myumap = {}
@@ -232,7 +232,9 @@ def _extract_addrs(sentence, pos_sensitive, truncate_pos=True, new_entry_when_no
     truncate_index = -1
     for match_info in matcher.iter(sentence):
         # 当没有省市等上级地区限制时, 优先选择的区的 adcode
-        first_adcode = myumap.get(match_info.origin_value)
+        first_adcode = matcher.get(myumap.get(match_info.origin_value))
+        if first_adcode:
+            first_adcode = first_adcode[1][0].adcode
         cur_addr = match_info.get_match_addr(last_info, first_adcode)
         if cur_addr:
             set_pos(res, match_info.get_rank(), match_info.start_index)
