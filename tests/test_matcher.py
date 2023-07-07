@@ -12,7 +12,7 @@ def test_matcher():
     matcher.add_addr_info(AddrInfo("北京市", "110000000000", 2, 2))
     matcher.add_addr_info(AddrInfo("京市", "110100000000", 2, 2))
     matcher.add_addr_info(AddrInfo("天津市", "120000000000", 2, 2))
-    matcher.add_addr_info(AddrInfo("津市市", "120100000000", 2, 2))
+    matcher.add_addr_info(AddrInfo("天津市", "120100000000", 2, 2))
 
     matcher.complete_add()
 

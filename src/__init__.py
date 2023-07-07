@@ -75,14 +75,16 @@ class AddrInfo:
 
 # 停用词包括: 省, 市, 特别行政区, 自治区.
 # 之所以 区 和 县 不作为停用词，是因为 区县 数目太多, 去掉 "区" 字 或者 "县" 字后很容易误配
-def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Matcher, dict):
+def _init_data(stop_key="([省市县]|特别行政区|自治区)$") -> (dict, Matcher, dict):
     # 加载自定义高优映射词典
+    # myumap: 当只有区的信息时， 且该区存在同名时， 指定该区具体是哪一个，字典的 key 为区名，value 为 adcode， 比如 {"朝阳区": "110105"}
     myumap = {}
     with open('src/resources/myumap.csv', encoding='utf-8', errors='ignore') as fp:
         lines = fp.read()
         for l in lines.split('\n'):
-            fields = l.strip().split(',')
-            myumap[fields[0]] = fields[1]
+            if not l.startswith('#'):
+                fields = l.strip().split(',')
+                myumap[fields[0]] = fields[1]
 
 
     # 加载特殊的简写（字典中无法匹配的情况）,主要是几个少数民族自治区
@@ -90,14 +92,23 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
     with open('src/resources/special_abbre.csv', encoding='utf-8', errors='ignore') as fp:
         lines = fp.read()
         for l in lines.split('\n'):
-            fields = l.strip().split(',')
-            special_abbre[fields[0]] = fields[1]
+            if not l.startswith('#'):
+                fields = l.strip().split(',')
+                special_abbre[fields[0]] = fields[1]
+
+    # 加载名称黑名单，此名单内的不必须匹配后缀（主要是省事），比如合作市
+    black_names = []
+    with open('src/resources/black_names', encoding='utf-8', errors='ignore') as fp:
+        lines = fp.read()
+        for l in lines.split('\n'):
+            if not l.startswith('#'):
+                black_names.append(l.strip())
 
     # 加载全球地域及行政代码
     ad_map = {}
-    matcher = Matcher(stop_key, special_abbre)
+    matcher = Matcher(stop_key, special_abbre, black_names)
     from pkg_resources import resource_stream
-    with resource_stream(__name__, 'resources/adcodes_level4_global.csv') as csv_stream:
+    with resource_stream(__name__, 'resources/location_codes_level4_global.csv') as csv_stream:
         from io import TextIOWrapper
         import csv
         text = TextIOWrapper(csv_stream, encoding='utf8')
@@ -120,14 +131,14 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
 ad_2_addr_dict, matcher, myumap = _init_data()
 
 
-def transform(location_strs, index=None, pos_sensitive=False, umap={}):
+def transform(location_strs, index=None, pos_sensitive=False):
     """将地址描述字符串转换以"省","市","区"信息为列的DataFrame表格
         Args:
             locations:地址描述字符集合,可以是list, Series等任意可以进行for in循环的集合
                       比如:["徐汇区虹漕路461号58号楼5楼", "泉州市洛江区万安塘西工业区"]
             index:可以通过这个参数指定输出的DataFrame的index,默认情况下是range(len(data))
             pos_sensitive:如果为True则会多返回三列，分别提取出的省市区在字符串中的位置，如果字符串中不存在的话则显示-1
-            umap: 当只有区的信息时， 且该区存在同名时， 指定该区具体是哪一个，字典的 key 为区名，value 为 adcode， 比如 {"朝阳区": "110105"}
+
         Returns:
             一个Pandas的DataFrame类型的表格，如下：
                |省    |市   |区    |地址                 |adcode   |
@@ -143,24 +154,24 @@ def transform(location_strs, index=None, pos_sensitive=False, umap={}):
 
     import pandas as pd
     result = pd.DataFrame(
-             [_get_one_addr(sentence, pos_sensitive, umap) for sentence in location_strs],
+             [_get_one_addr(sentence, pos_sensitive) for sentence in location_strs],
              index=index)
 
     return tidy_order(result, pos_sensitive)
 
 
-def transform_text_with_addrs(text_with_addrs, index=None, pos_sensitive=False, umap={}):
+def transform_text_with_addrs(text_with_addrs, index=None, pos_sensitive=False):
     """将含有多个地址的长文本中的地址全部提取出来
          Args:
              text_with_addrs: 一个字符串，里面可能含有多个地址
              index:可以通过这个参数指定输出的DataFrame的index,默认情况下是range(len(data))
              pos_sensitive:如果为True则会多返回三列，分别提取出的省市区在字符串中的位置，如果字符串中不存在的话则显示-1
-             umap: 当只有区的信息时， 且该区存在同名时， 指定该区具体是哪一个，字典的 key 为区名，value 为 adcode， 比如 {"朝阳区": "110105"}
+
     """
     import pandas as pd
-    # result = pd.DataFrame(filter(lambda record: record[_ADCODE] is not None,_extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False,
+    # result = pd.DataFrame(filter(lambda record: record[_ADCODE] is not None,_extract_addrs(text_with_addrs, pos_sensitive, truncate_pos=False,
     #                                      new_entry_when_not_belong=True)),index=index)  # filter 的判空似乎没有必要，还会引起下面的报错
-    result = pd.DataFrame(_extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False, new_entry_when_not_belong=True),index=index)
+    result = pd.DataFrame(_extract_addrs(text_with_addrs, pos_sensitive, truncate_pos=False, new_entry_when_not_belong=True),index=index)
     return tidy_order(result, pos_sensitive)
 
 
@@ -199,13 +210,13 @@ def pos_setter(pos_sensitive):
     return set_pos if pos_sensitive else empty
 
 
-def _get_one_addr(sentence, pos_sensitive, umap):
-    addrs = _extract_addrs(sentence, pos_sensitive, umap)
+def _get_one_addr(sentence, pos_sensitive):
+    addrs = _extract_addrs(sentence, pos_sensitive)
     # 取首次出现的地址
     return next(addrs)
 
 
-def _extract_addrs(sentence, pos_sensitive, umap, truncate_pos=True, new_entry_when_not_belong=False) -> dict:
+def _extract_addrs(sentence, pos_sensitive, truncate_pos=True, new_entry_when_not_belong=False) -> dict:
     """提取出 sentence 中的所有地址"""
     # 空记录
     if not isinstance(sentence, str) or sentence == '' or sentence is None:
@@ -221,7 +232,7 @@ def _extract_addrs(sentence, pos_sensitive, umap, truncate_pos=True, new_entry_w
     truncate_index = -1
     for match_info in matcher.iter(sentence):
         # 当没有省市等上级地区限制时, 优先选择的区的 adcode
-        first_adcode = umap.get(match_info.origin_value)
+        first_adcode = myumap.get(match_info.origin_value)
         cur_addr = match_info.get_match_addr(last_info, first_adcode)
         if cur_addr:
             set_pos(res, match_info.get_rank(), match_info.start_index)
@@ -275,8 +286,8 @@ def update_res_by_adcode(res: dict, adcode: str):
 
     if len(adcode) > 12:
         res[_PROVINCE] = adcode_name(adcode)
-        # res[_PROVINCE] = '国际'
-        # res[_CITY] = '国际'
+        res[_PROVINCE] = '国际'
+        res[_CITY] = '国际'
         return
 
     if adcode[:6].endswith("0000"):
