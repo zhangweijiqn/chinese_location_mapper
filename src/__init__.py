@@ -148,7 +148,7 @@ def transform_text_with_addrs(text_with_addrs, index=None, pos_sensitive=False, 
     """
     import pandas as pd
     # result = pd.DataFrame(filter(lambda record: record[_ADCODE] is not None,_extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False,
-    #                                      new_entry_when_not_belong=True)),index=index)
+    #                                      new_entry_when_not_belong=True)),index=index)  # filter 的判空似乎没有必要，还会引起下面的报错
     result = pd.DataFrame(_extract_addrs(text_with_addrs, pos_sensitive, umap, truncate_pos=False, new_entry_when_not_belong=True),index=index)
     return tidy_order(result, pos_sensitive)
 
