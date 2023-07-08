@@ -18,6 +18,7 @@ class MatchInfo:
             return res if res else self.attr_infos[0]
         else:
             return self.attr_infos[0]
+        # 此处如果想全部返回，则有待优化
 
     def get_rank(self):
         return self.attr_infos[0].rank
