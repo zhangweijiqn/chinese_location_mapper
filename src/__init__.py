@@ -5,8 +5,8 @@ import os
 root_path = os.path.abspath(os.path.dirname(__file__)).split('src')[0]
 sys.path.append(root_path)
 
-from .structures import AddrMap, Pca
-from .structures import P, C, A
+# from .structures import AddrMap, Pca
+# from .structures import P, C, A
 from .matcher import Matcher
 
 VERSION = (0, 5, 5)
@@ -104,9 +104,17 @@ def _init_data(stop_key="([省市]|特别行政区|自治区)$") -> (dict, Match
             if not l.startswith('#'):
                 black_names.append(l.strip())
 
+    # 加载机构黑名单，此名单内的返回第二列的
+    black_orgs = []
+    with open('src/resources/black_orgs', encoding='utf-8', errors='ignore') as fp:
+        lines = fp.read()
+        for l in lines.split('\n'):
+            if not l.startswith('#'):
+                black_orgs.append(l.strip())
+
     # 加载全球地域及行政代码
     ad_map = {}
-    matcher = Matcher(stop_key, special_abbre, black_names)
+    matcher = Matcher(stop_key, special_abbre, black_names, black_orgs)
     from pkg_resources import resource_stream
     with resource_stream(__name__, 'resources/location_codes_level4_global.csv') as csv_stream:
         from io import TextIOWrapper
@@ -219,9 +227,10 @@ def _get_one_addr(sentence, pos_sensitive):
 def _extract_addrs(sentence, pos_sensitive, truncate_pos=True, new_entry_when_not_belong=False) -> dict:
     """提取出 sentence 中的所有地址"""
     # 空记录
-    if not isinstance(sentence, str) or sentence == '' or sentence is None:
+    if not isinstance(sentence, str) or sentence == '' or sentence is None or matcher.is_black_org(sentence):
         yield empty_record(pos_sensitive)
         return
+
 
     set_pos = pos_setter(pos_sensitive)
 
