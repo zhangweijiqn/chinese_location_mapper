@@ -32,11 +32,12 @@ class MatchInfo:
 
 class Matcher:
 
-    def __init__(self, stop_re, special_abbre, black_names):
+    def __init__(self, stop_re, special_abbre, black_names, black_orgs):
         self.ac = ahocorasick.Automaton() #创建一个自动机,提取出包含知识库中实体的所有子串
         self.stop_re = stop_re
         self.special_abbre = special_abbre
         self.black_names = black_names
+        self.black_orgs = black_orgs
 
     def _abbr_name(self, origin_name):
         names = [origin_name]
@@ -81,6 +82,12 @@ class Matcher:
         if key is None:
             return key
         return self.ac.get(key)
+
+    def is_black_org(self, sentence):
+        for org in self.black_orgs:
+            if sentence.find(org) >= 0:
+                return True
+        return False
 
     def iter(self, sentence):
         prev_start_index = None
